@@ -7,7 +7,7 @@ import Form from "./form/Form";
 import List from "./list/List";
 
 import s from "./app.module.css";
-import search from "assets/search";
+import Message from "./message/Message";
 
 
 
@@ -15,26 +15,22 @@ class App extends Component {
   state = {
     contacts: [
       {
-        id:1,
+        id:'1',
         name:"John",
-        phone: 123
+        phone: '123'
       },
       {
-        id:21,
+        id:'21',
         name:"John Smith",
-        phone: 123
+        phone: '123'
       },
       {
-        id:3,
+        id:'3',
         name:"Bob",
-        phone: 123
+        phone: '123'
       },
     ],
-    searchResults: [],
-    searchValue: '',
-    name: '',
-    phone: '',
-    status: 'viewList',
+    filter: ''
   }
   componentDidMount() {
     let contacts = JSON.parse(localStorage.getItem('contact'))
@@ -47,108 +43,71 @@ class App extends Component {
       })
     }
   }
-  componentDidUpdate(){
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState !== this.state)
     localStorage.setItem("contact", JSON.stringify(this.state.contacts));
   }
-
   deleteContact = (idCandidate) => {
-    this.setState({
-      ...this.state,
-      contacts: this.state.contacts.filter(contact => contact.id !== idCandidate)
-    }, this.startSearch)
+    this.setState(prevState => ({
+        contacts: prevState.contacts.filter(contact => contact.id !== idCandidate)
+     })
+    )
   }
-
-  startSearch = () => {
-    this.setState({
-      ...this.state,
-      searchResults: this.state.contacts.filter(contactItem=>{
-        if (search(contactItem.name, this.state.searchValue)) {
-          return contactItem
-        } else {
-          return null 
-        }
-      }),
-    })
-  }
-changeSearchInput = (searchText) => {
-  if (searchText.length === 0){
-    this.setState( {
-      ...this.state,
-      searchValue: '',
-      searchResults: [],
-      status:'viewList'
-    })
-  } else { 
-    this.setState({
-      ...this.state,
-      searchValue: searchText,
-      status: 'search'
-    }, this.startSearch)
-  }
-}
-
-
-
-setNameCandidate = (nameCandidate) => {
-  this.setState({
-    ...this.state,
-    name: nameCandidate
-})
-}
-setPhoneCandidate = (phoneCandidate) => {
-  this.setState({
-    ...this.state,
-    phone: phoneCandidate
-})
-}
-
-setNewCandidate = () =>{
-  if ( this.state.name.length === 0 || this.state.phone.length === 0) {
-    Notify.warning("Please enter  name or phone number")
-  } else {
-    let result = false 
-    this.state.contacts.forEach(contact => {
-      if (contact.name === this.state.name){
-        result = true}
-    })
-    if (result) {
-      Notify.warning(`${this.state.name} is already in contact`)
-    } else {
-      this.setState({
-        name: '',
-        phone: '',
-        contacts: [
-          ...this.state.contacts,
-          {
-            id: nanoid(),
-            name: this.state.name,
-            phone: this.state.phone
-          }
-        ]
+  changeFilterValue = (newValue) => { 
+    this.setState(prevState => ({
+        filter: newValue
       })
-    }
-   
+    )
   }
-}
-// status - viewList - search 
-  render() {
-      
+  
+  setNewContact = (contactCandidate) => { 
+    console.log(contactCandidate)
+      const result = this.state.contacts.find(contactItem => contactItem.name.toLowerCase() === contactCandidate.name.toLowerCase())
+      if (result){
+        Notify.warning(`${contactCandidate.name} is already in contact`)
+        return ({})
+      } 
+      this.setState(prevState => ({
+            contacts: [
+              ...prevState.contacts,
+              {
+                id: nanoid(),
+                ...contactCandidate
+              }
+            ]
+          })
+        )
     
+  }
+  startSearch = () => {
+    const {contacts, filter}= this.state
+        const result = contacts.filter(contactItem => {
+        return contactItem.name.toLowerCase().includes(filter.toLowerCase())
+        })
+        return result
+  }
+  render() {
     return (
       <div>
       <h2 className={s.title}>Phonebook</h2>
       <Form 
-        setNameCandidate={this.setNameCandidate} 
-        setPhoneCandidate={this.setPhoneCandidate} 
-        setNewCandidate={this.setNewCandidate}
-        name={this.state.name}
-        phone={this.state.phone}
+        setNewContact = {this.setNewContact}
       />
-      <Filter changeEvent = {this.changeSearchInput}/>
-      <List 
-        list={this.state.status==="viewList" ? this.state.contacts : this.state.searchResults}
-        deleteContact={this.deleteContact} 
+      <Filter
+        filterValue = {this.state.filter} 
+        changeEvent = {this.changeFilterValue}
         />
+        {
+          
+          this.state.contacts.length === 0 ||
+          (this.state.filter.length !== 0 &&  this.startSearch().length === 0) ?
+          <Message text="No items in list"/> : 
+          <List 
+            list={this.startSearch()}
+            deleteContact={this.deleteContact} 
+          />
+        }
+      
 
       </div>
     )
